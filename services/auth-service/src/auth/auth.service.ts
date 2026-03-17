@@ -41,7 +41,7 @@ export class AuthService {
       email,
       passwordHash,
       role: 'User',
-      status: 'Pending',
+      status: 'Active',
     });
 
     const savedAccount = await this.accountRepository.save(account);
@@ -53,33 +53,15 @@ export class AuthService {
       totalContributions: 0,
     });
 
-    const savedProfile = await this.userProfileRepository.save(profile);
+    await this.userProfileRepository.save(profile);
 
     return {
-      message: 'Account created. Verification pending.',
-      accountId: savedAccount.accountId,
-      userId: savedProfile.userId,
+      message: 'Account created',
     };
   }
 
-  async verifyEmail(token: string) {
-    if (!token) {
-      throw new BadRequestException('Invalid verification token');
-    }
-
-    const account = await this.accountRepository.findOne({
-      where: { status: 'Pending' },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (!account) {
-      throw new BadRequestException('Invalid verification token');
-    }
-
-    account.status = 'Active';
-    await this.accountRepository.save(account);
-
-    return { message: 'Account activated' };
+  async verifyEmail() {
+    return { message: 'Verification not required' };
   }
 
   async login(dto: LoginDto) {
@@ -143,9 +125,4 @@ export class AuthService {
     return Boolean(revoked);
   }
 
-  private generateToken() {
-    return [...Array(32)]
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join('');
-  }
 }

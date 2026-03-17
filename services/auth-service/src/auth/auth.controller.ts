@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -24,7 +24,7 @@ export class AuthController {
   }
 
   @Get('verify-email')
-  verifyEmail(@Query('token') token: string) {
-    return this.authService.verifyEmail(token);
+  verifyEmail() {
+    return this.authService.verifyEmail();
   }
 }

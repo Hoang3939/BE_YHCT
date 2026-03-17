@@ -71,16 +71,14 @@ async function run() {
       ),
     ]);
 
-    if (!result?.accountId || !result?.userId) {
-      console.error('User creation failed: database did not return IDs.');
+    if (!result?.message) {
+      console.error('User creation failed: missing response message.');
       console.error('Result:', result);
       process.exitCode = 1;
       return;
     }
 
     console.log('User created and saved to database successfully.');
-    console.log('Account ID:', result.accountId);
-    console.log('User ID:', result.userId);
     console.log('Result:', result);
   } catch (error) {
     console.error('Failed to create user:', error?.message ?? error);
