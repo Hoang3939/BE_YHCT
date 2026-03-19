@@ -5,21 +5,26 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Account } from './entities/account.entity';
-import { UserProfile } from './entities/user-profile.entity';
+import { EmailVerification } from './entities/email-verification.entity';
 import { RevokedToken } from './entities/revoked-token.entity';
+import { Session } from './entities/session.entity';
+import { UserProfile } from './entities/user-profile.entity';
 import { JwtStrategy } from './guards/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Account, UserProfile, RevokedToken]),
+    TypeOrmModule.forFeature([
+      Account,
+      UserProfile,
+      RevokedToken,
+      EmailVerification,
+      Session,
+    ]),
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'yhct-secret',
-      signOptions: { expiresIn: '2h' },
-    }),
+    JwtModule.register({}),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

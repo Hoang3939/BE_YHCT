@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity({ name: 'User' })
 export class UserProfile {
@@ -28,4 +28,7 @@ export class UserProfile {
 
   @Column({ name: 'lastLoginAt', type: 'datetime2', precision: 7, nullable: true })
   lastLoginAt: Date | null;
+
+  @UpdateDateColumn({ name: 'updatedAt', type: 'datetime2', precision: 7 })
+  updatedAt: Date;
 }

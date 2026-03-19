@@ -12,6 +12,9 @@ coverage/
 .env.*
 !.env.example
 
+# Keys
+services/auth-service/keys/
+
 # Logs
 *.log
 logs/

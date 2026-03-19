@@ -1,15 +1,24 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { AuthService } from '../auth.service';
+import { readFileSync } from 'fs';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly authService: AuthService) {
+  constructor() {
+    const publicKey = process.env.JWT_PUBLIC_KEY_BASE64
+      ? Buffer.from(process.env.JWT_PUBLIC_KEY_BASE64, 'base64').toString('utf8')
+      : readFileSync(
+          process.env.JWT_PUBLIC_KEY_PATH ??
+            'services/auth-service/keys/jwt.public.pem',
+          'utf8',
+        );
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET ?? 'yhct-secret',
+      secretOrKey: publicKey,
+      algorithms: ['RS256'],
     });
   }
 

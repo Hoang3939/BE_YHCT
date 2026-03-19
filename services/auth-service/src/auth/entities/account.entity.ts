@@ -1,7 +1,14 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Index } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Index,
+  UpdateDateColumn,
+} from 'typeorm';
 
-export type AccountRole = 'Admin' | 'User';
-export type AccountStatus = 'Pending' | 'Active';
+export type AccountRole = 'admin' | 'user';
+export type AccountStatus = 'pending' | 'active' | 'locked';
 
 @Entity({ name: 'Account' })
 export class Account {
@@ -15,12 +22,15 @@ export class Account {
   @Column({ name: 'passwordHash', type: 'nvarchar', length: 255 })
   passwordHash: string;
 
-  @Column({ name: 'role', type: 'nvarchar', length: 10, default: 'User' })
+  @Column({ name: 'role', type: 'nvarchar', length: 10, default: 'user' })
   role: AccountRole;
 
-  @Column({ name: 'status', type: 'nvarchar', length: 10, default: 'Pending' })
+  @Column({ name: 'status', type: 'nvarchar', length: 10, default: 'pending' })
   status: AccountStatus;
 
   @CreateDateColumn({ name: 'createdAt', type: 'datetime2', precision: 7 })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updatedAt', type: 'datetime2', precision: 7 })
+  updatedAt: Date;
 }
