@@ -25,7 +25,7 @@ async function bootstrap() {
   );
 
   const swaggerPath = process.env.SWAGGER_PATH ?? '/api/docs';
-  const swaggerFile = join(__dirname, '..', 'swagger.json');
+  const swaggerFile = join(process.cwd(), 'swagger.json');
   const swaggerDocument = JSON.parse(readFileSync(swaggerFile, 'utf8'));
   SwaggerModule.setup(swaggerPath, app, swaggerDocument);
 

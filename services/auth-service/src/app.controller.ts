@@ -13,8 +13,8 @@ export class AppController {
 
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Admin')
+  @Roles('admin')
   adminOnly() {
-    return { ok: true, role: 'Admin' };
+    return { ok: true, role: 'admin' };
   }
 }

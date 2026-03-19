@@ -360,7 +360,7 @@ export class AuthService {
     const token = await this.jwtService.signAsync(payload, {
       privateKey: this.privateKey,
       algorithm: 'RS256',
-      expiresIn: this.accessExpiresIn,
+      expiresIn: this.parseDurationToSeconds(this.accessExpiresIn),
     });
 
     return {
@@ -388,7 +388,7 @@ export class AuthService {
     const token = await this.jwtService.signAsync(payload, {
       privateKey: this.privateKey,
       algorithm: 'RS256',
-      expiresIn: this.refreshExpiresIn,
+      expiresIn,
     });
 
     return {
