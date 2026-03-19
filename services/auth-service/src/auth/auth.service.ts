@@ -9,7 +9,8 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Account } from './entities/account.entity';
 import { UserProfile } from './entities/user-profile.entity';
-import { RevokedToken } from './entities/revoked-token.entity';
+import { Conversation } from './entities/conversation.entity';
+import { Message } from './entities/message.entity';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -20,8 +21,10 @@ export class AuthService {
     private readonly accountRepository: Repository<Account>,
     @InjectRepository(UserProfile)
     private readonly userProfileRepository: Repository<UserProfile>,
-    @InjectRepository(RevokedToken)
-    private readonly revokedTokenRepository: Repository<RevokedToken>,
+    @InjectRepository(Conversation)
+    private readonly conversationRepository: Repository<Conversation>,
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -108,21 +111,129 @@ export class AuthService {
       throw new BadRequestException('Token required');
     }
 
-    const exists = await this.revokedTokenRepository.findOne({
-      where: { token },
-    });
-    if (!exists) {
-      await this.revokedTokenRepository.save({ token });
-    }
-
     return { message: 'Logged out', redirect: '/' };
   }
 
-  async isTokenRevoked(token: string) {
-    const revoked = await this.revokedTokenRepository.findOne({
-      where: { token },
+  async getProfile(userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const profile = await this.userProfileRepository.findOne({
+      where: { userId },
     });
-    return Boolean(revoked);
+
+    if (!profile) {
+      throw new UnauthorizedException('User profile not found');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { accountId: profile.accountId },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Account not found');
+    }
+
+    return {
+      fullName: profile.fullName,
+      email: account.email,
+    };
   }
 
+  async listConversations(userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    return this.conversationRepository.find({
+      where: { userId },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  async createConversation(userId: string, title?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const conversation = this.conversationRepository.create({
+      userId,
+      conversationTitle: title ?? 'Cuộc trò chuyện mới',
+      lastMessageContent: null,
+      messageCount: 0,
+    });
+
+    return this.conversationRepository.save(conversation);
+  }
+
+  async listMessages(userId: string, conversationId: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const conversation = await this.conversationRepository.findOne({
+      where: { conversationId, userId },
+    });
+
+    if (!conversation) {
+      throw new UnauthorizedException('Conversation not found');
+    }
+
+    return this.messageRepository.find({
+      where: { conversationId },
+      order: { timestamp: 'ASC' },
+    });
+  }
+
+  async addMessage(userId: string, conversationId: string, role: string, content: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    if (!content?.trim()) {
+      throw new BadRequestException('Message content required');
+    }
+
+    const conversation = await this.conversationRepository.findOne({
+      where: { conversationId, userId },
+    });
+
+    if (!conversation) {
+      throw new UnauthorizedException('Conversation not found');
+    }
+
+    const message = this.messageRepository.create({
+      conversationId,
+      role,
+      content,
+    });
+
+    await this.messageRepository.save(message);
+
+    conversation.lastMessageContent = content;
+    conversation.messageCount = (conversation.messageCount ?? 0) + 1;
+    await this.conversationRepository.save(conversation);
+
+    return message;
+  }
+
+  async deleteConversation(userId: string, conversationId: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const conversation = await this.conversationRepository.findOne({
+      where: { conversationId, userId },
+    });
+
+    if (!conversation) {
+      throw new UnauthorizedException('Conversation not found');
+    }
+
+    await this.messageRepository.delete({ conversationId });
+    await this.conversationRepository.delete({ conversationId });
+
+    return { message: 'Conversation deleted' };
+  }
 }

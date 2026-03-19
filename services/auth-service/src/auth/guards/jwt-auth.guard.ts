@@ -17,10 +17,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new UnauthorizedException('Missing token');
     }
 
-    const revoked = await this.authService.isTokenRevoked(token);
-    if (revoked) {
-      throw new UnauthorizedException('Token revoked');
-    }
 
     return (await super.canActivate(context)) as boolean;
   }

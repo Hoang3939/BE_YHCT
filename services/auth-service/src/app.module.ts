@@ -6,7 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Account } from './auth/entities/account.entity';
 import { UserProfile } from './auth/entities/user-profile.entity';
-import { RevokedToken } from './auth/entities/revoked-token.entity';
+import { Conversation } from './auth/entities/conversation.entity';
+import { Message } from './auth/entities/message.entity';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { RevokedToken } from './auth/entities/revoked-token.entity';
       username: process.env.DB_USERNAME ?? 'sa',
       password: process.env.DB_PASSWORD ?? 'abc@XYZ1234',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [Account, UserProfile, RevokedToken],
+      entities: [Account, UserProfile, Conversation, Message],
       synchronize: false,
       options: {
         encrypt: true,

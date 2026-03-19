@@ -6,12 +6,13 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Account } from './entities/account.entity';
 import { UserProfile } from './entities/user-profile.entity';
-import { RevokedToken } from './entities/revoked-token.entity';
+import { Conversation } from './entities/conversation.entity';
+import { Message } from './entities/message.entity';
 import { JwtStrategy } from './guards/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Account, UserProfile, RevokedToken]),
+    TypeOrmModule.forFeature([Account, UserProfile, Conversation, Message]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'yhct-secret',
