@@ -1,5 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule } from '@nestjs/swagger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -20,6 +23,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  const swaggerPath = process.env.SWAGGER_PATH ?? '/api/docs';
+  const swaggerFile = join(__dirname, '..', 'swagger.json');
+  const swaggerDocument = JSON.parse(readFileSync(swaggerFile, 'utf8'));
+  SwaggerModule.setup(swaggerPath, app, swaggerDocument);
+
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();

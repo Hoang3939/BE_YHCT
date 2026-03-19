@@ -1,0 +1,288 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "YHCT Auth Service API",
+    "description": "API documentation for authentication service (RS256, email verification, refresh flow).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Local auth service"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Auth, email verification, session and token management"
+    }
+  ],
+  "paths": {
+    "/auth/signup": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/SignUpRequest"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MessageResponse"}
+              }
+            }
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"}
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Verify email with OTP",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/VerifyEmailRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MessageResponse"}
+              }
+            }
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"}
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Resend verification email",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/ResendVerificationRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification sent",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MessageResponse"}
+              }
+            }
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"}
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login and get tokens",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/LoginRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/LoginResponse"}
+              }
+            }
+          },
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Rotate refresh token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/RefreshRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New token pair",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/RefreshResponse"}
+              }
+            }
+          },
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Logout and revoke tokens",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/LogoutRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged out",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MessageResponse"}
+              }
+            }
+          },
+          "400": {"$ref": "#/components/responses/BadRequest"},
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token from /auth/login"
+      }
+    },
+    "schemas": {
+      "SignUpRequest": {
+        "type": "object",
+        "required": ["email", "password", "confirmPassword", "fullName"],
+        "properties": {
+          "email": {"type": "string", "format": "email", "example": "user@example.com"},
+          "password": {"type": "string", "minLength": 6, "example": "Password123"},
+          "confirmPassword": {"type": "string", "minLength": 6, "example": "Password123"},
+          "fullName": {"type": "string", "example": "Nguyen Van A"}
+        }
+      },
+      "VerifyEmailRequest": {
+        "type": "object",
+        "required": ["email", "token"],
+        "properties": {
+          "email": {"type": "string", "format": "email", "example": "user@example.com"},
+          "token": {"type": "string", "minLength": 6, "example": "123456"}
+        }
+      },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {"type": "string", "format": "email", "example": "user@example.com"}
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {"type": "string", "format": "email", "example": "user@example.com"},
+          "password": {"type": "string", "minLength": 6, "example": "Password123"}
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {"type": "string"},
+          "accessTokenExpiresAt": {"type": "string", "format": "date-time"},
+          "refreshToken": {"type": "string"},
+          "refreshTokenExpiresAt": {"type": "string", "format": "date-time"},
+          "role": {"type": "string", "example": "user"}
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": ["refreshToken"],
+        "properties": {
+          "refreshToken": {"type": "string"}
+        }
+      },
+      "RefreshResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {"type": "string"},
+          "accessTokenExpiresAt": {"type": "string", "format": "date-time"},
+          "refreshToken": {"type": "string"},
+          "refreshTokenExpiresAt": {"type": "string", "format": "date-time"}
+        }
+      },
+      "LogoutRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {"type": "string"}
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {"type": "string", "example": "OK"}
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "statusCode": {"type": "integer", "example": 400},
+          "message": {"type": "string", "example": "Bad Request"},
+          "error": {"type": "string", "example": "Bad Request"}
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad Request",
+        "content": {
+          "application/json": {
+            "schema": {"$ref": "#/components/schemas/Error"}
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {"$ref": "#/components/schemas/Error"}
+          }
+        }
+      }
+    }
+  }
+}
