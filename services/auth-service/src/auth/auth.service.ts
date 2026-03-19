@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { readFileSync } from 'fs';
-import { randomInt } from 'crypto';
+
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer, { Transporter } from 'nodemailer';
 import { Account } from './entities/account.entity';
@@ -20,7 +20,7 @@ import { EmailVerification } from './entities/email-verification.entity';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyEmailQueryDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LogoutDto } from './dto/logout.dto';
 
@@ -42,6 +42,7 @@ export class AuthService {
   private readonly refreshExpiresIn: string;
   private readonly emailVerifyExpiresMin: number;
   private readonly resendCooldownSec: number;
+  private readonly frontendUrl: string;
 
   constructor(
     @InjectRepository(Account)
@@ -75,6 +76,7 @@ export class AuthService {
     this.resendCooldownSec = Number(
       process.env.EMAIL_RESEND_COOLDOWN_SEC ?? 30,
     );
+    this.frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -117,7 +119,7 @@ export class AuthService {
 
     await this.userProfileRepository.save(profile);
 
-    const token = this.generateOtp();
+    const token = this.generateVerificationToken();
     const expiresAt = this.addMinutes(new Date(), this.emailVerifyExpiresMin);
     await this.emailVerificationRepository.save({
       accountId: savedAccount.accountId,
@@ -158,7 +160,7 @@ export class AuthService {
       }
     }
 
-    const token = this.generateOtp();
+    const token = this.generateVerificationToken();
     const expiresAt = this.addMinutes(new Date(), this.emailVerifyExpiresMin);
     await this.emailVerificationRepository.save({
       accountId: account.accountId,
@@ -171,20 +173,20 @@ export class AuthService {
     return { message: 'Verification email sent' };
   }
 
-  async verifyEmail(dto: VerifyEmailDto) {
-    const email = dto.email.trim().toLowerCase();
-    const account = await this.accountRepository.findOne({ where: { email } });
-    if (!account) {
-      throw new BadRequestException('Account not found');
-    }
-
+  async verifyEmail(dto: VerifyEmailQueryDto) {
     const verification = await this.emailVerificationRepository.findOne({
-      where: { accountId: account.accountId, token: dto.token },
-      order: { createdAt: 'DESC' },
+      where: { token: dto.token },
     });
 
     if (!verification || verification.expiresAt <= new Date()) {
-      throw new BadRequestException('Invalid or expired verification code');
+      throw new BadRequestException('Invalid or expired verification link');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { accountId: verification.accountId },
+    });
+    if (!account) {
+      throw new BadRequestException('Account not found');
     }
 
     account.status = 'active';
@@ -208,7 +210,12 @@ export class AuthService {
     }
 
     if (account.status !== 'active') {
-      throw new ForbiddenException('Account not active');
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: 'Tài khoản chưa được xác thực. Vui lòng kiểm tra email.',
+        needsVerification: true,
+        email: account.email,
+      });
     }
 
     const profile = await this.userProfileRepository.findOne({
@@ -401,19 +408,45 @@ export class AuthService {
 
   private async sendVerificationEmail(email: string, token: string) {
     const from = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? '';
-    const subject = 'YHCT - Verify your account';
-    const text = `Your verification code is: ${token}`;
+    const subject = 'YHCT - Xác thực tài khoản';
+    const verifyUrl = `${this.frontendUrl}/verify-email?token=${encodeURIComponent(token)}`;
+
+    const html = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8faf9;border-radius:12px">
+        <div style="text-align:center;margin-bottom:24px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7de0b0;margin-right:8px"></span>
+          <span style="font-size:14px;color:#6b7c70;letter-spacing:0.15em">YHCT</span>
+        </div>
+        <h1 style="font-size:22px;color:#1b1f1c;text-align:center;margin:0 0 16px">Xác thực tài khoản</h1>
+        <p style="font-size:14px;color:#4a5a50;text-align:center;margin:0 0 28px;line-height:1.6">
+          Cảm ơn bạn đã đăng ký. Nhấn nút bên dưới để xác thực email của bạn.
+        </p>
+        <div style="text-align:center;margin-bottom:28px">
+          <a href="${verifyUrl}" style="display:inline-block;padding:12px 36px;background:#1b1f1c;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">
+            Xác thực email
+          </a>
+        </div>
+        <p style="font-size:12px;color:#8a9a90;text-align:center;margin:0;line-height:1.5">
+          Nếu nút không hoạt động, sao chép link này vào trình duyệt:<br/>
+          <a href="${verifyUrl}" style="color:#7de0b0;word-break:break-all">${verifyUrl}</a>
+        </p>
+        <p style="font-size:11px;color:#b0b8b3;text-align:center;margin:20px 0 0">
+          Link này sẽ hết hạn sau ${this.emailVerifyExpiresMin} phút.
+        </p>
+      </div>
+    `;
 
     await this.transporter.sendMail({
       to: email,
       from,
       subject,
-      text,
+      html,
+      text: `Xác thực tài khoản: ${verifyUrl}`,
     });
   }
 
-  private generateOtp() {
-    return String(randomInt(100000, 999999));
+  private generateVerificationToken() {
+    return uuidv4();
   }
 
   private loadKey(base64: string | undefined, path: string) {

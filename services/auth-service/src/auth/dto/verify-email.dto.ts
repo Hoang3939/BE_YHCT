@@ -1,10 +1,7 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
-export class VerifyEmailDto {
-  @IsEmail()
-  email: string;
-
+export class VerifyEmailQueryDto {
   @IsString()
-  @MinLength(6)
+  @MinLength(1)
   token: string;
 }

@@ -1,9 +1,9 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyEmailQueryDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LogoutDto } from './dto/logout.dto';
 
@@ -16,8 +16,8 @@ export class AuthController {
     return this.authService.signUp(dto);
   }
 
-  @Post('verify-email')
-  verifyEmail(@Body() dto: VerifyEmailDto) {
+  @Get('verify-email')
+  verifyEmail(@Query() dto: VerifyEmailQueryDto) {
     return this.authService.verifyEmail(dto);
   }
 

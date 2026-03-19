@@ -45,18 +45,19 @@
       }
     },
     "/auth/verify-email": {
-      "post": {
+      "get": {
         "tags": ["Authentication"],
-        "summary": "Verify email with OTP",
+        "summary": "Verify email via link (GET with token query param)",
         "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {"$ref": "#/components/schemas/VerifyEmailRequest"}
-            }
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"},
+            "description": "Verification token from email link"
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Email verified",
@@ -194,14 +195,6 @@
           "password": {"type": "string", "minLength": 6, "example": "Password123"},
           "confirmPassword": {"type": "string", "minLength": 6, "example": "Password123"},
           "fullName": {"type": "string", "example": "Nguyen Van A"}
-        }
-      },
-      "VerifyEmailRequest": {
-        "type": "object",
-        "required": ["email", "token"],
-        "properties": {
-          "email": {"type": "string", "format": "email", "example": "user@example.com"},
-          "token": {"type": "string", "minLength": 6, "example": "123456"}
         }
       },
       "ResendVerificationRequest": {
