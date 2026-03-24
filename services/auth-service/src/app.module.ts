@@ -9,6 +9,9 @@ import { EmailVerification } from './auth/entities/email-verification.entity';
 import { RevokedToken } from './auth/entities/revoked-token.entity';
 import { Session } from './auth/entities/session.entity';
 import { UserProfile } from './auth/entities/user-profile.entity';
+import { ChatModule } from './chat/chat.module';
+import { Conversation } from './chat/entities/conversation.entity';
+import { Message } from './chat/entities/message.entity';
 
 @Module({
   imports: [
@@ -22,7 +25,7 @@ import { UserProfile } from './auth/entities/user-profile.entity';
       username: process.env.DB_USERNAME ?? 'sa',
       password: process.env.DB_PASSWORD ?? 'abc@XYZ1234',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [Account, UserProfile, RevokedToken, EmailVerification, Session],
+      entities: [Account, UserProfile, RevokedToken, EmailVerification, Session, Conversation, Message],
       synchronize: false,
       options: {
         encrypt: true,
@@ -30,6 +33,7 @@ import { UserProfile } from './auth/entities/user-profile.entity';
       },
     }),
     AuthModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

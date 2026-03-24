@@ -244,6 +244,8 @@ export class AuthService {
       refreshToken: refreshToken.token,
       refreshTokenExpiresAt: refreshToken.expiresAt,
       role: account.role,
+      fullName: profile?.fullName ?? 'Hồ sơ chưa cập nhật',
+      email: account.email,
     };
   }
 
