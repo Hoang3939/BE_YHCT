@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -6,6 +6,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyEmailQueryDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -43,5 +44,11 @@ export class AuthController {
   ) {
     const token = authorization?.replace(/^Bearer\s+/i, '') ?? '';
     return this.authService.logout(token, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getMe(@Req() req: { user?: { userId?: string; email?: string; role?: string } }) {
+    return this.authService.getProfile(req.user?.userId);
   }
 }

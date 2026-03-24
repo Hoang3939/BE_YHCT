@@ -60,12 +60,12 @@ export class AuthService {
     this.privateKey = this.loadKey(
       process.env.JWT_PRIVATE_KEY_BASE64,
       process.env.JWT_PRIVATE_KEY_PATH ??
-        'services/auth-service/keys/jwt.private.pem',
+      'services/auth-service/keys/jwt.private.pem',
     );
     this.publicKey = this.loadKey(
       process.env.JWT_PUBLIC_KEY_BASE64,
       process.env.JWT_PUBLIC_KEY_PATH ??
-        'services/auth-service/keys/jwt.public.pem',
+      'services/auth-service/keys/jwt.public.pem',
     );
 
     this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
@@ -345,7 +345,34 @@ export class AuthService {
     const revoked = await this.revokedTokenRepository.findOne({
       where: { jti: payload.jti },
     });
-    return Boolean(revoked);
+    return !!revoked;
+  }
+
+  async getProfile(userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const profile = await this.userProfileRepository.findOne({
+      where: { userId },
+    });
+
+    if (!profile) {
+      throw new UnauthorizedException('User profile not found');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { accountId: profile.accountId },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Account not found');
+    }
+
+    return {
+      fullName: profile.fullName,
+      email: account.email,
+    };
   }
 
   private verifyToken(token: string) {
