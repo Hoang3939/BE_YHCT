@@ -60,12 +60,12 @@ export class AuthService {
     this.privateKey = this.loadKey(
       process.env.JWT_PRIVATE_KEY_BASE64,
       process.env.JWT_PRIVATE_KEY_PATH ??
-        'services/auth-service/keys/jwt.private.pem',
+        '',
     );
     this.publicKey = this.loadKey(
       process.env.JWT_PUBLIC_KEY_BASE64,
       process.env.JWT_PUBLIC_KEY_PATH ??
-        'services/auth-service/keys/jwt.public.pem',
+        '',
     );
 
     this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
@@ -426,10 +426,6 @@ export class AuthService {
             Xác thực email
           </a>
         </div>
-        <p style="font-size:12px;color:#8a9a90;text-align:center;margin:0;line-height:1.5">
-          Nếu nút không hoạt động, sao chép link này vào trình duyệt:<br/>
-          <a href="${verifyUrl}" style="color:#7de0b0;word-break:break-all">${verifyUrl}</a>
-        </p>
         <p style="font-size:11px;color:#b0b8b3;text-align:center;margin:20px 0 0">
           Link này sẽ hết hạn sau ${this.emailVerifyExpiresMin} phút.
         </p>
