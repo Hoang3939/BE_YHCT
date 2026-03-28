@@ -17,12 +17,15 @@ import { UserProfile } from './entities/user-profile.entity';
 import { RevokedToken } from './entities/revoked-token.entity';
 import { Session } from './entities/session.entity';
 import { EmailVerification } from './entities/email-verification.entity';
+import { PasswordReset } from './entities/password-reset.entity';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyEmailQueryDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 interface TokenPayload {
   sub: string;
@@ -55,17 +58,19 @@ export class AuthService {
     private readonly sessionRepository: Repository<Session>,
     @InjectRepository(EmailVerification)
     private readonly emailVerificationRepository: Repository<EmailVerification>,
+    @InjectRepository(PasswordReset)
+    private readonly passwordResetRepository: Repository<PasswordReset>,
     private readonly jwtService: JwtService,
   ) {
     this.privateKey = this.loadKey(
       process.env.JWT_PRIVATE_KEY_BASE64,
       process.env.JWT_PRIVATE_KEY_PATH ??
-        '',
+        'services/auth-service/keys/jwt.private.pem',
     );
     this.publicKey = this.loadKey(
       process.env.JWT_PUBLIC_KEY_BASE64,
       process.env.JWT_PUBLIC_KEY_PATH ??
-        '',
+        'services/auth-service/keys/jwt.public.pem',
     );
 
     this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
@@ -244,6 +249,8 @@ export class AuthService {
       refreshToken: refreshToken.token,
       refreshTokenExpiresAt: refreshToken.expiresAt,
       role: account.role,
+      fullName: profile?.fullName ?? 'Hồ sơ chưa cập nhật',
+      email: account.email,
     };
   }
 
@@ -343,7 +350,100 @@ export class AuthService {
     const revoked = await this.revokedTokenRepository.findOne({
       where: { jti: payload.jti },
     });
-    return Boolean(revoked);
+    return !!revoked;
+  }
+
+  async getProfile(userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    const profile = await this.userProfileRepository.findOne({
+      where: { userId },
+    });
+
+    if (!profile) {
+      throw new UnauthorizedException('User profile not found');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { accountId: profile.accountId },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Account not found');
+    }
+
+    return {
+      fullName: profile.fullName,
+      email: account.email,
+    };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const account = await this.accountRepository.findOne({ where: { email } });
+
+    // Always return success to avoid leaking whether an email exists
+    if (!account) {
+      return { message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.' };
+    }
+
+    // Cooldown check
+    const latest = await this.passwordResetRepository.findOne({
+      where: { accountId: account.accountId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (latest) {
+      const nextAllowed = this.addSeconds(latest.createdAt, this.resendCooldownSec);
+      if (nextAllowed > new Date()) {
+        throw new BadRequestException('Vui lòng đợi trước khi gửi lại yêu cầu.');
+      }
+    }
+
+    const token = this.generateVerificationToken();
+    const expiresAt = this.addMinutes(new Date(), this.emailVerifyExpiresMin);
+    await this.passwordResetRepository.save({
+      accountId: account.accountId,
+      token,
+      expiresAt,
+      used: false,
+    });
+
+    await this.sendPasswordResetEmail(email, token);
+
+    return { message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('Mật khẩu xác nhận không khớp.');
+    }
+
+    const resetRecord = await this.passwordResetRepository.findOne({
+      where: { token: dto.token, used: false },
+    });
+
+    if (!resetRecord || resetRecord.expiresAt <= new Date()) {
+      throw new BadRequestException('Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { accountId: resetRecord.accountId },
+    });
+    if (!account) {
+      throw new BadRequestException('Tài khoản không tồn tại.');
+    }
+
+    account.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.accountRepository.save(account);
+
+    // Mark token as used
+    resetRecord.used = true;
+    await this.passwordResetRepository.save(resetRecord);
+
+    return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập.' };
   }
 
   private verifyToken(token: string) {
@@ -438,6 +538,45 @@ export class AuthService {
       subject,
       html,
       text: `Xác thực tài khoản: ${verifyUrl}`,
+    });
+  }
+
+  private async sendPasswordResetEmail(email: string, token: string) {
+    const from = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? '';
+    const subject = 'YHCT - Đặt lại mật khẩu';
+    const resetUrl = `${this.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+    const html = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8faf9;border-radius:12px">
+        <div style="text-align:center;margin-bottom:24px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7de0b0;margin-right:8px"></span>
+          <span style="font-size:14px;color:#6b7c70;letter-spacing:0.15em">YHCT</span>
+        </div>
+        <h1 style="font-size:22px;color:#1b1f1c;text-align:center;margin:0 0 16px">Đặt lại mật khẩu</h1>
+        <p style="font-size:14px;color:#4a5a50;text-align:center;margin:0 0 28px;line-height:1.6">
+          Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn nút bên dưới để tiếp tục.
+        </p>
+        <div style="text-align:center;margin-bottom:28px">
+          <a href="${resetUrl}" style="display:inline-block;padding:12px 36px;background:#1b1f1c;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">
+            Đặt lại mật khẩu
+          </a>
+        </div>
+        <p style="font-size:12px;color:#8a9a90;text-align:center;margin:0;line-height:1.5">
+          Nếu nút không hoạt động, sao chép link này vào trình duyệt:<br/>
+          <a href="${resetUrl}" style="color:#7de0b0;word-break:break-all">${resetUrl}</a>
+        </p>
+        <p style="font-size:11px;color:#b0b8b3;text-align:center;margin:20px 0 0">
+          Link này sẽ hết hạn sau ${this.emailVerifyExpiresMin} phút. Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+        </p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      to: email,
+      from,
+      subject,
+      html,
+      text: `Đặt lại mật khẩu: ${resetUrl}`,
     });
   }
 
