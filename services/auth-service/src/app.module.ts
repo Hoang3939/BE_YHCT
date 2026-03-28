@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Account } from './auth/entities/account.entity';
 import { EmailVerification } from './auth/entities/email-verification.entity';
+import { PasswordReset } from './auth/entities/password-reset.entity';
 import { RevokedToken } from './auth/entities/revoked-token.entity';
 import { Session } from './auth/entities/session.entity';
 import { UserProfile } from './auth/entities/user-profile.entity';
@@ -25,7 +26,7 @@ import { Message } from './chat/entities/message.entity';
       username: process.env.DB_USERNAME ?? 'sa',
       password: process.env.DB_PASSWORD ?? 'abc@XYZ1234',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [Account, UserProfile, RevokedToken, EmailVerification, Session, Conversation, Message],
+      entities: [Account, UserProfile, RevokedToken, EmailVerification, PasswordReset, Session, Conversation, Message],
       synchronize: false,
       options: {
         encrypt: true,

@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Account } from './entities/account.entity';
 import { EmailVerification } from './entities/email-verification.entity';
+import { PasswordReset } from './entities/password-reset.entity';
 import { RevokedToken } from './entities/revoked-token.entity';
 import { Session } from './entities/session.entity';
 import { UserProfile } from './entities/user-profile.entity';
@@ -18,6 +19,7 @@ import { JwtStrategy } from './guards/jwt.strategy';
       UserProfile,
       RevokedToken,
       EmailVerification,
+      PasswordReset,
       Session,
     ]),
     PassportModule,
