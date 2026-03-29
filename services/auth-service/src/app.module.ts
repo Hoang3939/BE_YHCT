@@ -10,9 +10,7 @@ import { PasswordReset } from './auth/entities/password-reset.entity';
 import { RevokedToken } from './auth/entities/revoked-token.entity';
 import { Session } from './auth/entities/session.entity';
 import { UserProfile } from './auth/entities/user-profile.entity';
-import { ChatModule } from './chat/chat.module';
-import { Conversation } from './chat/entities/conversation.entity';
-import { Message } from './chat/entities/message.entity';
+// Removed ChatModule imports
 
 @Module({
   imports: [
@@ -26,7 +24,7 @@ import { Message } from './chat/entities/message.entity';
       username: process.env.DB_USERNAME ?? '',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [Account, UserProfile, RevokedToken, EmailVerification, PasswordReset, Session, Conversation, Message],
+      entities: [Account, UserProfile, RevokedToken, EmailVerification, PasswordReset, Session],
       synchronize: false,
       options: {
         encrypt: true,
@@ -34,7 +32,6 @@ import { Message } from './chat/entities/message.entity';
       },
     }),
     AuthModule,
-    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
