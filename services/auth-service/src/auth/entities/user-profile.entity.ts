@@ -29,6 +29,15 @@ export class UserProfile {
   @Column({ name: 'lastLoginAt', type: 'datetime2', precision: 7, nullable: true })
   lastLoginAt: Date | null;
 
+  @Column({ name: 'customInstructions', type: 'nvarchar', length: 'MAX', nullable: true })
+  customInstructions: string | null;
+
+  @Column({ name: 'privacyMode', type: 'bit', default: 1 })
+  privacyMode: boolean;
+
+  @Column({ name: 'useMemory', type: 'bit', default: 1 })
+  useMemory: boolean;
+
   @UpdateDateColumn({ name: 'updatedAt', type: 'datetime2', precision: 7 })
   updatedAt: Date;
 }

@@ -4,6 +4,7 @@ import { extname } from 'path';
 import { Repository } from 'typeorm';
 import { Conversation } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
+import { UserProfile } from '../auth/entities/user-profile.entity';
 
 type UploadedAttachment = {
   originalname: string;
@@ -18,6 +19,8 @@ export class ChatService {
     private conversationRepo: Repository<Conversation>,
     @InjectRepository(Message)
     private messageRepo: Repository<Message>,
+    @InjectRepository(UserProfile)
+    private userProfileRepo: Repository<UserProfile>,
   ) {}
 
   async getConversations(userId: string) {
@@ -81,6 +84,13 @@ export class ChatService {
     try {
       const formData = new FormData();
       formData.append('message', text);
+      formData.append('conversation_id', conversation.conversationId);
+
+      // Pass custom instructions to RAG
+      const profile = await this.userProfileRepo.findOne({ where: { userId } });
+      if (profile?.customInstructions) {
+        formData.append('custom_instructions', profile.customInstructions);
+      }
 
       const allowedExt = new Set(['.pdf', '.doc', '.docx']);
       for (const file of attachments) {

@@ -10,7 +10,6 @@ import { PasswordReset } from './auth/entities/password-reset.entity';
 import { RevokedToken } from './auth/entities/revoked-token.entity';
 import { Session } from './auth/entities/session.entity';
 import { UserProfile } from './auth/entities/user-profile.entity';
-// Removed ChatModule imports
 
 @Module({
   imports: [

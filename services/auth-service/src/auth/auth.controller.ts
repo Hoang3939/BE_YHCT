@@ -9,6 +9,7 @@ import { LogoutDto } from './dto/logout.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -62,5 +63,14 @@ export class AuthController {
   @Get('me')
   getMe(@Req() req: { user?: { userId?: string; email?: string; role?: string } }) {
     return this.authService.getProfile(req.user?.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me')
+  updateMe(
+    @Req() req: { user?: { userId?: string; email?: string; role?: string } },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(req.user?.userId, dto);
   }
 }

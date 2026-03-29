@@ -26,6 +26,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 interface TokenPayload {
   sub: string;
@@ -377,7 +378,26 @@ export class AuthService {
     return {
       fullName: profile.fullName,
       email: account.email,
+      customInstructions: profile.customInstructions,
+      privacyMode: profile.privacyMode,
+      useMemory: profile.useMemory,
     };
+  }
+
+  async updateProfile(userId: string | undefined, dto: UpdateProfileDto) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid user context');
+    }
+    const profile = await this.userProfileRepository.findOne({ where: { userId } });
+    if (!profile) {
+      throw new BadRequestException('User profile not found');
+    }
+    if (dto.fullName !== undefined) profile.fullName = dto.fullName;
+    if (dto.customInstructions !== undefined) profile.customInstructions = dto.customInstructions;
+    if (dto.privacyMode !== undefined) profile.privacyMode = dto.privacyMode;
+    if (dto.useMemory !== undefined) profile.useMemory = dto.useMemory;
+    await this.userProfileRepository.save(profile);
+    return { message: 'Profile updated successfully' };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
