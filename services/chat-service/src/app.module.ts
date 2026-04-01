@@ -8,6 +8,7 @@ import { RevokedToken } from './auth-shared/entities/revoked-token.entity';
 import { ChatModule } from './chat/chat.module';
 import { Conversation } from './chat/entities/conversation.entity';
 import { Message } from './chat/entities/message.entity';
+import { UserMemory } from './chat/entities/user-memory.entity';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { Message } from './chat/entities/message.entity';
       username: process.env.DB_USERNAME ?? 'sa',
       password: process.env.DB_PASSWORD ?? 'abc@XYZ1234',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [RevokedToken, Conversation, Message],
+      entities: [RevokedToken, Conversation, Message, UserMemory],
       synchronize: false,
       options: {
         encrypt: true,

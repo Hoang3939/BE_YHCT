@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -72,5 +72,11 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.authService.updateProfile(req.user?.userId, dto);
+  }
+
+  // Internal endpoint — no auth guard, internal network only
+  @Get('internal/profile/:userId')
+  getInternalProfile(@Param('userId') userId: string) {
+    return this.authService.getProfile(userId);
   }
 }

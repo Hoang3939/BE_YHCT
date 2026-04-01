@@ -4,10 +4,11 @@ import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { Conversation } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
+import { UserMemory } from './entities/user-memory.entity';
 import { AuthSharedModule } from '../auth-shared/auth-shared.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Conversation, Message]), AuthSharedModule],
+  imports: [TypeOrmModule.forFeature([Conversation, Message, UserMemory]), AuthSharedModule],
   controllers: [ChatController],
   providers: [ChatService]
 })
