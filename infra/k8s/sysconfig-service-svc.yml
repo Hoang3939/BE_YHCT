@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sysconfig-service
+spec:
+  selector:
+    app: sysconfig-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3008
+  type: ClusterIP

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sysconfig-service
+  labels:
+    app: sysconfig-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sysconfig-service
+  template:
+    metadata:
+      labels:
+        app: sysconfig-service
+    spec:
+      containers:
+        - name: sysconfig-service
+          image: lemichael52/sysconfig-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3008
+          envFrom:
+            - secretRef:
+                name: backend-env
+          
+          

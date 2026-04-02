@@ -1,0 +1,585 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "System Config Service API",
+    "version": "1.0.0",
+    "description": "API for managing system configuration settings. All endpoints require an admin access token from auth-service. Use Swagger Authorize with the value: Bearer <access_token>."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3008",
+      "description": "Local sysconfig service"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System Config",
+      "description": "Admin-only endpoints for system configuration management"
+    }
+  ],
+  "paths": {
+    "/api/admin/system-config": {
+      "get": {
+        "tags": ["System Config"],
+        "summary": "Get all system configs",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of system configs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SystemConfig"
+                  }
+                },
+                "examples": {
+                  "default": {
+                    "value": [
+                      {
+                        "id": 1,
+                        "configKey": "site_name",
+                        "configValue": "YHCT Portal",
+                        "configType": "string",
+                        "description": "Display name shown in the application header.",
+                        "isEditable": true,
+                        "isActive": true,
+                        "createdDate": "2024-01-01T00:00:00Z",
+                        "lastModifiedDate": "2024-01-01T00:00:00Z",
+                        "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+                      },
+                      {
+                        "id": 2,
+                        "configKey": "maintenance_mode",
+                        "configValue": "false",
+                        "configType": "boolean",
+                        "description": "Turn maintenance mode on or off.",
+                        "isEditable": true,
+                        "isActive": true,
+                        "createdDate": "2024-01-02T00:00:00Z",
+                        "lastModifiedDate": "2024-01-05T08:30:00Z",
+                        "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["System Config"],
+        "summary": "Create a new system config",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Create a new configuration entry. Required fields are configKey and configValue. Example raw body:\n{\n  \"configKey\": \"maintenance_mode\",\n  \"configValue\": \"false\",\n  \"configType\": \"boolean\",\n  \"description\": \"Enable or disable maintenance mode.\",\n  \"isEditable\": true,\n  \"isActive\": true\n}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSystemConfigDto"
+              },
+              "example": {
+                "configKey": "maintenance_mode",
+                "configValue": "false",
+                "configType": "boolean",
+                "description": "Enable or disable maintenance mode.",
+                "isEditable": true,
+                "isActive": true
+              },
+              "examples": {
+                "booleanConfig": {
+                  "summary": "Boolean config",
+                  "value": {
+                    "configKey": "maintenance_mode",
+                    "configValue": "false",
+                    "configType": "boolean",
+                    "description": "Enable or disable maintenance mode.",
+                    "isEditable": true,
+                    "isActive": true
+                  }
+                },
+                "stringConfig": {
+                  "summary": "String config",
+                  "value": {
+                    "configKey": "site_name",
+                    "configValue": "YHCT Portal",
+                    "configType": "string",
+                    "description": "Public application name.",
+                    "isEditable": true,
+                    "isActive": true
+                  }
+                },
+                "jsonConfig": {
+                  "summary": "JSON stored as string",
+                  "value": {
+                    "configKey": "homepage_banner",
+                    "configValue": "{\"title\":\"Welcome\",\"enabled\":true}",
+                    "configType": "json",
+                    "description": "Homepage banner content.",
+                    "isEditable": true,
+                    "isActive": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created system config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/admin/system-config/{id}": {
+      "get": {
+        "tags": ["System Config"],
+        "summary": "Get system config by ID",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 2
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System config object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfig"
+                },
+                "examples": {
+                  "default": {
+                    "value": {
+                      "id": 2,
+                      "configKey": "max_users",
+                      "configValue": "1000",
+                      "configType": "number",
+                      "description": "Maximum number of users allowed.",
+                      "isEditable": true,
+                      "isActive": true,
+                      "createdDate": "2024-01-01T00:00:00Z",
+                      "lastModifiedDate": "2024-01-01T00:00:00Z",
+                      "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": ["System Config"],
+        "summary": "Update system config by ID",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 2
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Update one or more fields of an existing config. All fields are optional. Example raw body:\n{\n  \"configKey\": \"max_users\",\n  \"configValue\": \"2000\",\n  \"configType\": \"number\",\n  \"description\": \"Increase maximum users limit.\",\n  \"isEditable\": true,\n  \"isActive\": true,\n  \"lastModifiedByAdminId\": \"8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111\"\n}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemConfigDto"
+              },
+              "example": {
+                "configKey": "max_users",
+                "configValue": "2000",
+                "configType": "number",
+                "description": "Increase maximum users limit.",
+                "isEditable": true,
+                "isActive": true,
+                "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+              },
+              "examples": {
+                "updateValue": {
+                  "summary": "Update config value",
+                  "value": {
+                    "configValue": "2000",
+                    "description": "Increase max users limit.",
+                    "isActive": true,
+                    "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+                  }
+                },
+                "disableConfig": {
+                  "summary": "Disable config",
+                  "value": {
+                    "configValue": "false",
+                    "configType": "boolean",
+                    "description": "Temporarily disable this feature.",
+                    "isActive": false,
+                    "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated system config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["System Config"],
+        "summary": "Delete system config by ID",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 2
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/system-config/key/{configKey}": {
+      "get": {
+        "tags": ["System Config"],
+        "summary": "Get system config by key",
+        "description": "Requires Authorization header: Bearer <access_token>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "configKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "maintenance_mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System config object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfig"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Paste the admin access token from auth-service login. Swagger UI will send it as Authorization: Bearer <access_token>."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad request",
+        "content": {
+          "application/json": {
+            "examples": {
+              "default": {
+                "value": {
+                  "statusCode": 400,
+                  "message": "Config key \"maintenance_mode\" already exists",
+                  "error": "Bad Request"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid, or expired access token",
+        "content": {
+          "application/json": {
+            "examples": {
+              "default": {
+                "value": {
+                  "statusCode": 401,
+                  "message": "Invalid or expired token",
+                  "error": "Unauthorized"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested config not found",
+        "content": {
+          "application/json": {
+            "examples": {
+              "default": {
+                "value": {
+                  "statusCode": 404,
+                  "message": "System config with id 999 not found",
+                  "error": "Not Found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SystemConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "configKey": {
+            "type": "string",
+            "example": "site_name"
+          },
+          "configValue": {
+            "type": "string",
+            "example": "YHCT Portal"
+          },
+          "configType": {
+            "type": "string",
+            "example": "string"
+          },
+          "description": {
+            "type": "string",
+            "example": "Display name shown in the application header."
+          },
+          "isEditable": {
+            "type": "boolean",
+            "example": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T00:00:00Z"
+          },
+          "lastModifiedDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-05T08:30:00Z"
+          },
+          "lastModifiedByAdminId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+          }
+        }
+      },
+      "CreateSystemConfigDto": {
+        "type": "object",
+        "required": [
+          "configKey",
+          "configValue"
+        ],
+        "description": "Payload for creating a new system configuration.",
+        "example": {
+          "configKey": "maintenance_mode",
+          "configValue": "false",
+          "configType": "boolean",
+          "description": "Enable or disable maintenance mode.",
+          "isEditable": true,
+          "isActive": true
+        },
+        "properties": {
+          "configKey": {
+            "type": "string",
+            "description": "Unique config key.",
+            "example": "maintenance_mode"
+          },
+          "configValue": {
+            "type": "string",
+            "description": "Stored value as string.",
+            "example": "false"
+          },
+          "configType": {
+            "type": "string",
+            "description": "Logical value type.",
+            "example": "boolean"
+          },
+          "description": {
+            "type": "string",
+            "description": "Meaning of this config for admins.",
+            "example": "Enable or disable maintenance mode."
+          },
+          "isEditable": {
+            "type": "boolean",
+            "description": "Whether this config can be changed later.",
+            "example": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this config is active.",
+            "example": true
+          }
+        }
+      },
+      "UpdateSystemConfigDto": {
+        "type": "object",
+        "description": "Payload for updating an existing system configuration. Every field is optional.",
+        "example": {
+          "configValue": "2000",
+          "configType": "number",
+          "description": "Increase maximum users limit.",
+          "isEditable": true,
+          "isActive": true,
+          "lastModifiedByAdminId": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+        },
+        "properties": {
+          "configKey": {
+            "type": "string",
+            "description": "Updated config key if renaming is allowed.",
+            "example": "max_users"
+          },
+          "configValue": {
+            "type": "string",
+            "description": "Updated stored value as string.",
+            "example": "2000"
+          },
+          "configType": {
+            "type": "string",
+            "description": "Updated logical value type.",
+            "example": "number"
+          },
+          "description": {
+            "type": "string",
+            "description": "Updated admin-facing description.",
+            "example": "Increase maximum users limit."
+          },
+          "isEditable": {
+            "type": "boolean",
+            "description": "Whether this config remains editable.",
+            "example": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this config remains active.",
+            "example": true
+          },
+          "lastModifiedByAdminId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Admin ID that performed the update.",
+            "example": "8b8d2ef0-b2ff-4f4f-9a4d-6feccb9e2111"
+          }
+        }
+      }
+    }
+  }
+}
