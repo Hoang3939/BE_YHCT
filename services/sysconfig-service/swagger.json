@@ -9,6 +9,10 @@
     {
       "url": "http://localhost:3008",
       "description": "Local sysconfig service"
+    },
+    {
+      "url": "http://thaoduoc.online",
+      "description": "Ingress route"
     }
   ],
   "tags": [
@@ -18,7 +22,7 @@
     }
   ],
   "paths": {
-    "/api/admin/system-config": {
+    "/admin/sysconfig": {
       "get": {
         "tags": ["System Config"],
         "summary": "Get all system configs",
@@ -160,7 +164,7 @@
         }
       }
     },
-    "/api/admin/system-config/{id}": {
+    "/admin/sysconfig/{id}": {
       "get": {
         "tags": ["System Config"],
         "summary": "Get system config by ID",
@@ -332,7 +336,7 @@
         }
       }
     },
-    "/api/admin/system-config/key/{configKey}": {
+    "/admin/sysconfig/key/{configKey}": {
       "get": {
         "tags": ["System Config"],
         "summary": "Get system config by key",

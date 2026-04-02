@@ -9,6 +9,8 @@ async function bootstrap() {
   // Validation pipe
   app.useGlobalPipes(new ValidationPipe());
 
+  app.setGlobalPrefix('admin');
+
   // CORS
   app.enableCors();
 
@@ -30,7 +32,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('admin/sysconfig/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },

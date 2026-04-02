@@ -39,3 +39,11 @@ spec:
                 name: chat-service
                 port:
                   number: 80
+
+          - path: /admin/sysconfig
+            pathType: Prefix
+            backend:
+              service:
+                name: sysconfig-service
+                port:
+                  number: 80

@@ -19,7 +19,7 @@ import { Roles } from '../auth/guards/roles.decorator';
 
 @ApiTags('System Config')
 @ApiBearerAuth('BearerAuth')
-@Controller('api/admin/system-config')
+@Controller('sysconfig')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class SystemConfigController {
