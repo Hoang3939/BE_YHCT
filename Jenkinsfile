@@ -129,5 +129,22 @@ pipeline {
                 """
             }
         }
+
+        stage('Build & Deploy Sysconfig Service') {
+            when {
+                expression { CHANGED_FILES.contains("services/sysconfig-service") }
+            }
+            steps {
+                sh """
+                docker build -t $DOCKER_REPO/sysconfig-service:$IMAGE_TAG ./services/sysconfig-service
+                docker push $DOCKER_REPO/sysconfig-service:$IMAGE_TAG
+
+                kubectl set image deployment/sysconfig-service \
+                sysconfig-service=$DOCKER_REPO/sysconfig-service:$IMAGE_TAG
+
+                kubectl rollout status deployment/sysconfig-service
+                """
+            }
+        }
     }
 }
