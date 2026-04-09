@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DataPipeline } from './entities/data-pipeline.entity';
+import { Ebook } from './entities/ebook.entity';
 
 @Injectable()
 export class PipelinesService {
   constructor(
     @InjectRepository(DataPipeline)
     private readonly pipelineRepo: Repository<DataPipeline>,
+    @InjectRepository(Ebook)
+    private readonly ebookRepo: Repository<Ebook>,
   ) {}
 
   async findAll() {
@@ -79,4 +82,39 @@ export class PipelinesService {
       successRate,
     };
   }
+
+  async completePipeline(
+    id: string,
+    body: { storagePath?: string; status?: string; totalChunks?: number; errorMessage?: string },
+  ) {
+    const pipeline = await this.pipelineRepo.findOne({
+      where: { id },
+      relations: ['ebook'],
+    });
+    if (!pipeline) throw new NotFoundException('Pipeline not found.');
+
+    // Update pipeline status
+    pipeline.status = (body.status as any) || 'completed';
+    if (body.errorMessage) pipeline.errorMessage = body.errorMessage;
+    if (body.status === 'completed') pipeline.progress = 100;
+
+    await this.pipelineRepo.save(pipeline);
+
+    // Update ebook storagePath and totalChunks if provided
+    if (pipeline.ebookId && (body.storagePath || body.totalChunks)) {
+      const ebook = await this.ebookRepo.findOne({ where: { id: pipeline.ebookId } });
+      if (ebook) {
+        if (body.storagePath) ebook.storagePath = body.storagePath;
+        if (body.totalChunks) ebook.totalChunks = body.totalChunks;
+        await this.ebookRepo.save(ebook);
+      }
+    }
+
+    return {
+      pipelineId: pipeline.id,
+      status: pipeline.status,
+      storagePath: body.storagePath || null,
+    };
+  }
 }
+
