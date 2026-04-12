@@ -33,3 +33,8 @@ Thumbs.db
 *.pid
 
 keys/
+
+.roo
+.rooignore
+.roomodes
+roo-code-settings-optimized.json

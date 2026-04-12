@@ -55,12 +55,26 @@ export class EbooksService {
     };
   }
 
-  async findAll() {
-    const rows = await this.ebookRepository
+  async findAll(filters?: { search?: string; category?: string }) {
+    const query = this.ebookRepository
       .createQueryBuilder('ebook')
       .leftJoinAndSelect('ebook.pipelines', 'pipeline')
-      .orderBy('ebook.createdAt', 'DESC')
-      .getMany();
+      .orderBy('ebook.createdAt', 'DESC');
+
+    // Search filter (title or author)
+    if (filters?.search) {
+      query.andWhere(
+        '(ebook.title LIKE :search OR ebook.author LIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Category filter
+    if (filters?.category) {
+      query.andWhere('ebook.category = :category', { category: filters.category });
+    }
+
+    const rows = await query.getMany();
 
     return rows.map((book) => {
       const sortedPipelines = [...(book.pipelines ?? [])].sort(
@@ -73,14 +87,66 @@ export class EbooksService {
         title: book.title,
         author: book.author,
         category: book.category,
+        description: book.description,
         coverImage: book.coverImage,
         totalChunks: book.totalChunks,
         isPublished: book.isPublished,
+        viewCount: book.viewCount,
         createdAt: book.createdAt,
         latestPipelineStatus: latest?.status ?? null,
         latestPipelineId: latest?.id ?? null,
       };
     });
+  }
+
+  async findOne(id: string) {
+    const book = await this.ebookRepository.findOne({
+      where: { id },
+      relations: ['pipelines'],
+    });
+    if (!book) throw new NotFoundException('Ebook not found.');
+
+    return {
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      category: book.category,
+      description: book.description,
+      coverImage: book.coverImage,
+      storagePath: book.storagePath,
+      totalChunks: book.totalChunks,
+      isPublished: book.isPublished,
+      viewCount: book.viewCount,
+      downloadCount: book.downloadCount,
+      createdAt: book.createdAt,
+      updatedAt: book.updatedAt,
+    };
+  }
+
+  async getReadUrl(id: string) {
+    const book = await this.ebookRepository.findOne({ where: { id } });
+    if (!book) throw new NotFoundException('Ebook not found.');
+    if (!book.storagePath) throw new NotFoundException('EPUB file not available yet.');
+
+    // Increment view count
+    book.viewCount = (book.viewCount || 0) + 1;
+    await this.ebookRepository.save(book);
+
+    // Generate signed URL (valid for 1 hour)
+    const { data, error } = await this.supabase.storage
+      .from('secure-documents')
+      .createSignedUrl(book.storagePath, 3600);
+
+    if (error || !data?.signedUrl) {
+      throw new InternalServerErrorException(`Failed to generate read URL: ${error?.message}`);
+    }
+
+    return {
+      signedUrl: data.signedUrl,
+      title: book.title,
+      author: book.author,
+      expiresIn: 3600,
+    };
   }
 
   async markPipelinePending(pipelineId: string) {
