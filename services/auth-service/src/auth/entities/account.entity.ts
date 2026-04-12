@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type AccountRole = 'admin' | 'user';
+export type AccountRole = 'admin' | 'user' | 'expert';
 export type AccountStatus = 'pending' | 'active' | 'locked';
 
 @Entity({ name: 'Account' })
