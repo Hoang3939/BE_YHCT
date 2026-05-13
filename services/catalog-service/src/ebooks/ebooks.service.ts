@@ -1,7 +1,7 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createClient } from '@supabase/supabase-js';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateEbookDto } from './dto/create-ebook.dto';
 import { Ebook } from './entities/ebook.entity';
 import { DataPipeline } from '../pipelines/entities/data-pipeline.entity';
@@ -153,8 +153,18 @@ export class EbooksService {
     const pipeline = await this.pipelineRepository.findOne({ where: { id: pipelineId } });
     if (!pipeline) throw new NotFoundException('Pipeline not found.');
 
-    pipeline.status = 'pending';
-    await this.pipelineRepository.save(pipeline);
+    const activeJob = await this.pipelineRepository.findOne({
+      where: { status: In(['pending', 'processing']) },
+      order: { updatedAt: 'DESC' },
+    });
+    if (activeJob && activeJob.id !== pipeline.id) {
+      throw new ConflictException('Another pipeline is already active. Please wait until it completes before starting a new one.');
+    }
+
+    if (pipeline.status !== 'pending') {
+      pipeline.status = 'pending';
+      await this.pipelineRepository.save(pipeline);
+    }
 
     return {
       pipelineId: pipeline.id,

@@ -4,8 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PipelinesModule } from './pipelines/pipelines.module';
+import { ContributionAsset } from './pipelines/entities/contribution-asset.entity';
 import { DataPipeline } from './pipelines/entities/data-pipeline.entity';
 import { Ebook } from './pipelines/entities/ebook.entity';
+import { KnowledgeContribution } from './pipelines/entities/knowledge-contribution.entity';
 
 @Module({
   imports: [
@@ -17,7 +19,7 @@ import { Ebook } from './pipelines/entities/ebook.entity';
       username: process.env.DB_USERNAME ?? '',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'YHCT_DB',
-      entities: [DataPipeline, Ebook],
+      entities: [DataPipeline, Ebook, KnowledgeContribution, ContributionAsset],
       synchronize: false,
       options: {
         encrypt: true,

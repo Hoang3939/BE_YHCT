@@ -1,10 +1,12 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
 
 export class ReviewContributionDto {
   @IsIn(['approved', 'rejected'])
   status!: 'approved' | 'rejected';
 
-  @IsOptional()
+  @ValidateIf((dto: ReviewContributionDto) => dto.status === 'rejected')
   @IsString()
+  @MinLength(5)
+  @IsOptional()
   feedback?: string;
 }

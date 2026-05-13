@@ -11,7 +11,8 @@ import * as bcrypt from 'bcryptjs';
 import { readFileSync } from 'fs';
 
 import { v4 as uuidv4 } from 'uuid';
-import nodemailer, { Transporter } from 'nodemailer';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { Account } from './entities/account.entity';
 import { UserProfile } from './entities/user-profile.entity';
 import { RevokedToken } from './entities/revoked-token.entity';
