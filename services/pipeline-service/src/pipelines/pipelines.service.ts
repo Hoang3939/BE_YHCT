@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { ContributionAsset } from './entities/contribution-asset.entity';
 import { DataPipeline } from './entities/data-pipeline.entity';
 import { Ebook } from './entities/ebook.entity';
+import { KnowledgeContribution } from './entities/knowledge-contribution.entity';
 
 @Injectable()
 export class PipelinesService {
@@ -11,6 +13,10 @@ export class PipelinesService {
     private readonly pipelineRepo: Repository<DataPipeline>,
     @InjectRepository(Ebook)
     private readonly ebookRepo: Repository<Ebook>,
+    @InjectRepository(KnowledgeContribution)
+    private readonly contributionRepo: Repository<KnowledgeContribution>,
+    @InjectRepository(ContributionAsset)
+    private readonly contributionAssetRepo: Repository<ContributionAsset>,
   ) {}
 
   async findAll() {
@@ -18,13 +24,23 @@ export class PipelinesService {
       relations: ['ebook'],
       order: { createdAt: 'DESC' },
     });
+    const contributionIds = pipelines
+      .map((pipeline) => pipeline.contributionId)
+      .filter((value): value is string => Boolean(value));
 
-    return pipelines.map(pipeline => {
-      // Tính toán progress giả lập nếu status chưa phù hợp
+    const contributions = contributionIds.length
+      ? await this.contributionRepo.find({
+          where: { contributionId: In(contributionIds) },
+        })
+      : [];
+    const contributionMap = new Map(
+      contributions.map((contribution) => [contribution.contributionId, contribution]),
+    );
+
+    return pipelines.map((pipeline) => {
       let progress = pipeline.progress || 0;
-      let frontendStatus = pipeline.status as any;
-      
-      // Mapping pipeline status to Frontend job status
+      let frontendStatus = pipeline.status as string;
+
       if (pipeline.status === 'completed') {
         progress = 100;
         frontendStatus = 'success';
@@ -35,17 +51,20 @@ export class PipelinesService {
         frontendStatus = 'running';
       }
 
-      // Generate a deterministic worker ID based on UUID so it doesn't jump
       const numericId = parseInt(pipeline.id.substring(0, 4), 16);
       const workerString = `worker-${(numericId % 9) + 1}`;
+      const relatedContribution = pipeline.contributionId
+        ? contributionMap.get(pipeline.contributionId)
+        : null;
 
-      // Map processingType
       let typeLabel = 'manual';
-      if (pipeline.processingType === 'full_pipeline') typeLabel = 'batch_import';
+      if (pipeline.processingType === 'full_pipeline') {
+        typeLabel = pipeline.contributionId ? 'contribution_queue' : 'batch_import';
+      }
 
       return {
         id: pipeline.id,
-        name: pipeline.ebook?.title || 'Unknown Ebook',
+        name: pipeline.ebook?.title || relatedContribution?.title || 'Unknown Pipeline Job',
         type: typeLabel,
         status: frontendStatus,
         progress,
@@ -80,6 +99,62 @@ export class PipelinesService {
       tokensProcessed: `${Math.round(chunksCreated * 1.5)}k`,
       avgTimeSeconds: 45, // mock for now
       successRate,
+    };
+  }
+
+  async queueApprovedContribution(contributionId: string) {
+    const contribution = await this.contributionRepo.findOne({
+      where: { contributionId },
+    });
+    if (!contribution) {
+      throw new NotFoundException('Contribution not found.');
+    }
+    if (contribution.status !== 'approved') {
+      throw new BadRequestException('Only approved contributions can be queued for pipeline.');
+    }
+
+    const existingJob = await this.pipelineRepo.findOne({
+      where: [
+        { contributionId, status: 'pending_approval' },
+        { contributionId, status: 'pending' },
+        { contributionId, status: 'processing' },
+      ],
+      order: { createdAt: 'DESC' },
+    });
+    if (existingJob) {
+      return {
+        pipelineId: existingJob.id,
+        status: existingJob.status,
+        contributionId,
+      };
+    }
+
+    const firstAsset = await this.contributionAssetRepo.findOne({
+      where: { contributionId },
+      order: { createdAt: 'ASC' },
+    });
+    if (!firstAsset) {
+      throw new BadRequestException('Approved contribution must have at least one asset to queue pipeline.');
+    }
+
+    const pipeline = this.pipelineRepo.create({
+      ebookId: null,
+      contributionId,
+      processingType: 'full_pipeline',
+      status: 'pending_approval',
+      fileName: firstAsset.originalFileName,
+      fileSize: firstAsset.fileSize,
+      errorMessage: null,
+      progress: 0,
+      startedAt: null,
+      completedAt: null,
+    });
+
+    const savedPipeline = await this.pipelineRepo.save(pipeline);
+    return {
+      pipelineId: savedPipeline.id,
+      status: savedPipeline.status,
+      contributionId,
     };
   }
 

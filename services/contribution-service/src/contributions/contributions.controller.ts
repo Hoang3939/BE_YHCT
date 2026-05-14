@@ -1,32 +1,63 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
-  ForbiddenException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { ContributionsService } from './contributions.service';
+import { AddContributionAssetDto } from './dto/add-contribution-asset.dto';
+import { CreateContributionDto } from './dto/create-contribution.dto';
 import { ReviewContributionDto } from './dto/review-contribution.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ContributionsService } from './contributions.service';
 
-/**
- * Contributions Controller
- *
- * Role-based access:
- *   - GET /contributions        → admin, expert
- *   - GET /contributions/:id    → admin, expert
- *   - PATCH /contributions/:id/review → expert only
- *
- * NOTE: In production, roles should be enforced via RolesGuard + @Roles() decorator
- * from auth-service. For now, we check req.user.role manually since this service
- * may not share the same auth module. The API Gateway / auth middleware is expected
- * to attach `req.user` with `{ accountId, role }`.
- */
+@UseGuards(JwtAuthGuard)
 @Controller('contributions')
 export class ContributionsController {
   constructor(private readonly contributionsService: ContributionsService) {}
+
+  @Post()
+  async create(
+    @Body() dto: CreateContributionDto,
+    @Req() req?: { user?: { userId?: string; role?: string } },
+  ) {
+    const userId = req?.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Missing user context');
+    }
+
+    const data = await this.contributionsService.create(userId, dto);
+    return {
+      success: true,
+      message: 'Đã tạo hồ sơ đóng góp tài liệu.',
+      data,
+    };
+  }
+
+  @Post(':id/assets')
+  async addAsset(
+    @Param('id') id: string,
+    @Body() dto: AddContributionAssetDto,
+    @Req() req?: { user?: { userId?: string; role?: string } },
+  ) {
+    const userId = req?.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Missing user context');
+    }
+
+    const data = await this.contributionsService.addAsset(id, dto);
+    return {
+      success: true,
+      message: 'Đã lưu metadata tài liệu đóng góp.',
+      data,
+    };
+  }
 
   @Get()
   async findAll(
