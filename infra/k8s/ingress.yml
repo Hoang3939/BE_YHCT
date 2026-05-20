@@ -40,6 +40,30 @@ spec:
                 port:
                   number: 80
 
+          - path: /contribution
+            pathType: Prefix
+            backend:
+              service:
+                name: contribution-service
+                port:
+                  number: 80
+
+          - path: /contributions
+            pathType: Prefix
+            backend:
+              service:
+                name: contribution-service
+                port:
+                  number: 80
+
+          - path: /pipeline
+            pathType: Prefix
+            backend:
+              service:
+                name: pipeline-service
+                port:
+                  number: 80
+
           - path: /admin/sysconfig
             pathType: Prefix
             backend:

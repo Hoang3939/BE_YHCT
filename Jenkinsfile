@@ -113,6 +113,40 @@ pipeline {
             }
         }
 
+        stage('Build & Deploy Contribution Service') {
+            when {
+                expression { CHANGED_FILES.contains("services/contribution-service") }
+            }
+            steps {
+                sh """
+                docker build -t $DOCKER_REPO/contribution-service:$IMAGE_TAG ./services/contribution-service
+                docker push $DOCKER_REPO/contribution-service:$IMAGE_TAG
+
+                kubectl set image deployment/contribution-service \
+                contribution-service=$DOCKER_REPO/contribution-service:$IMAGE_TAG
+
+                kubectl rollout status deployment/contribution-service
+                """
+            }
+        }
+
+        stage('Build & Deploy Pipeline Service') {
+            when {
+                expression { CHANGED_FILES.contains("services/pipeline-service") }
+            }
+            steps {
+                sh """
+                docker build -t $DOCKER_REPO/pipeline-service:$IMAGE_TAG ./services/pipeline-service
+                docker push $DOCKER_REPO/pipeline-service:$IMAGE_TAG
+
+                kubectl set image deployment/pipeline-service \
+                pipeline-service=$DOCKER_REPO/pipeline-service:$IMAGE_TAG
+
+                kubectl rollout status deployment/pipeline-service
+                """
+            }
+        }
+
         stage('Build & Deploy Chat Service') {
             when {
                 expression { CHANGED_FILES.contains("services/chat-service") }

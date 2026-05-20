@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contribution-service
+  labels:
+    app: contribution-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: contribution-service
+  template:
+    metadata:
+      labels:
+        app: contribution-service
+    spec:
+      containers:
+        - name: contribution-service
+          image: lemichael52/contribution-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3005
+          envFrom:
+            - secretRef:
+                name: backend-env

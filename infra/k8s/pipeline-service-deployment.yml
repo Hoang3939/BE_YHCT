@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-service
+  labels:
+    app: pipeline-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pipeline-service
+  template:
+    metadata:
+      labels:
+        app: pipeline-service
+    spec:
+      containers:
+        - name: pipeline-service
+          image: lemichael52/pipeline-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3006
+          envFrom:
+            - secretRef:
+                name: backend-env
