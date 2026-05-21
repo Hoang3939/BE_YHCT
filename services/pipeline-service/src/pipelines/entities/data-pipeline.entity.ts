@@ -33,6 +33,9 @@ export class DataPipeline {
   @Column({ type: 'int', default: 0 })
   progress!: number;
 
+  @Column({ type: 'nvarchar', length: 255, nullable: true })
+  currentStep!: string | null;
+
   @Column({ type: 'datetime2', nullable: true })
   startedAt!: Date | null;
 

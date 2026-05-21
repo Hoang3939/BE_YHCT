@@ -11,7 +11,7 @@ import { CreateFeedbackDto } from './dto/create-feedback.dto';
 
 @Controller('feedbacks')
 export class FeedbacksController {
-  constructor(private readonly feedbacksService: FeedbacksService) {}
+  constructor(private readonly feedbacksService: FeedbacksService) { }
 
   @Post()
   async create(
@@ -25,6 +25,11 @@ export class FeedbacksController {
       message: 'Cảm ơn bạn đã góp ý. Chúng tôi đã ghi nhận phản hồi của bạn.',
       data,
     };
+  }
+
+  @Get('stats')
+  async getStats() {
+    return this.feedbacksService.getStats();
   }
 
   @Get()

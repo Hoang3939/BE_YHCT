@@ -24,7 +24,7 @@ export class ChatService {
     private messageRepo: Repository<Message>,
     @InjectRepository(UserMemory)
     private userMemoryRepo: Repository<UserMemory>,
-  ) {}
+  ) { }
 
   async getConversations(userId: string) {
     return this.conversationRepo.find({
@@ -46,6 +46,39 @@ export class ChatService {
 
     await this.messageRepo.delete({ conversationId });
     return this.conversationRepo.remove(conversation);
+  }
+
+  async updateTitle(userId: string, conversationId: string, title: string) {
+    const conversation = await this.conversationRepo.findOne({ where: { conversationId, userId } });
+    if (!conversation) throw new HttpException('Conversation not found', 404);
+
+    conversation.conversationTitle = title.slice(0, 500);
+    conversation.updatedAt = new Date();
+    return this.conversationRepo.save(conversation);
+  }
+
+  async addFeedback(
+    messageId: string,
+    type: 'good' | 'bad' | 'copy',
+    note?: string,
+  ) {
+    const message = await this.messageRepo.findOne({ where: { messageId } });
+    if (!message) throw new HttpException('Message not found', 404);
+
+    message.feedbackType = type;
+    message.feedbackAt = new Date();
+    message.feedbackNote = note?.slice(0, 500) || null;
+    return this.messageRepo.save(message);
+  }
+
+  async removeFeedback(messageId: string) {
+    const message = await this.messageRepo.findOne({ where: { messageId } });
+    if (!message) throw new HttpException('Message not found', 404);
+
+    message.feedbackType = null;
+    message.feedbackAt = null;
+    message.feedbackNote = null;
+    return this.messageRepo.save(message);
   }
 
   /** Fetch useMemory + customInstructions from auth-service (internal, no JWT) */
@@ -93,6 +126,49 @@ export class ChatService {
     } catch {
       // Silent fail — memory extraction is best-effort
     }
+  }
+
+  async getStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalConversations, todayQueries] = await Promise.all([
+      this.conversationRepo.count(),
+      this.messageRepo
+        .createQueryBuilder('m')
+        .where('m.timestamp >= :today', { today })
+        .andWhere('m.role = :role', { role: 'user' })
+        .getCount(),
+    ]);
+
+    return { totalConversations, todayQueries };
+  }
+
+  async getHeatmap() {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const rows = await this.conversationRepo
+      .createQueryBuilder('c')
+      .select('c.createdAt', 'createdAt')
+      .where('c.createdAt >= :since', { since })
+      .getRawMany() as { createdAt: Date }[];
+
+    // dayOfWeek 0=Sun…6=Sat → map to T2-CN index 0-6
+    const DOW_MAP: number[] = [6, 0, 1, 2, 3, 4, 5]; // JS Sun=0 → index 6 (CN)
+    // bucket: [dayIdx 0-6][hourBucket 0-8] where hourBucket = Math.floor(hour / 2 - 2) offset from 6h
+    const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+    const grid: number[][] = Array.from({ length: 7 }, () => Array(9).fill(0));
+
+    for (const r of rows) {
+      const d = new Date(r.createdAt);
+      const dow = DOW_MAP[d.getDay()];
+      const h = d.getHours();
+      const hIdx = HOURS.findIndex((hh, i) => hh <= h && (i === HOURS.length - 1 || HOURS[i + 1] > h));
+      if (hIdx >= 0) grid[dow][hIdx]++;
+    }
+
+    return { grid, days: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], hours: HOURS.map(h => `${h}h`) };
   }
 
   async sendMessage(
@@ -203,18 +279,20 @@ export class ChatService {
       role: 'assistant',
       content: aiReply,
     });
-    await this.messageRepo.save(aiMessage);
+    const savedMessage = await this.messageRepo.save(aiMessage);
+    console.log('Saved message:', savedMessage); // Debug
 
     conversation.lastMessageContent = aiReply;
     conversation.messageCount = conversation.messageCount + 1;
     await this.conversationRepo.save(conversation);
 
     // Async background: extract & save key health facts (no await — does not block response)
-    this.extractAndSaveFacts(userId, text, aiReply).catch(() => {});
+    this.extractAndSaveFacts(userId, text, aiReply).catch(() => { });
 
     return {
       conversationId: conversation.conversationId,
       reply: aiReply,
+      messageId: savedMessage.messageId,
     };
   }
 }

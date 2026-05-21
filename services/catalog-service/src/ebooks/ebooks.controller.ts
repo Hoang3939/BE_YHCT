@@ -5,7 +5,7 @@ import { EbooksService } from './ebooks.service';
 
 @Controller()
 export class EbooksController {
-  constructor(private readonly ebooksService: EbooksService) {}
+  constructor(private readonly ebooksService: EbooksService) { }
 
   @Get('ebooks')
   async findAll(
@@ -13,6 +13,12 @@ export class EbooksController {
     @Query('category') category?: string,
   ) {
     const data = await this.ebooksService.findAll({ search, category });
+    return { success: true, data };
+  }
+
+  @Get('ebooks/stats')
+  async getStats() {
+    const data = await this.ebooksService.getStats();
     return { success: true, data };
   }
 
@@ -25,6 +31,28 @@ export class EbooksController {
   @Get('ebooks/:id/read-url')
   async getReadUrl(@Param('id') id: string) {
     const data = await this.ebooksService.getReadUrl(id);
+    return { success: true, data };
+  }
+
+  @Patch('ebooks/:id/publish')
+  @HttpCode(HttpStatus.OK)
+  async setPublished(
+    @Param('id') id: string,
+    @Body() body: { isPublished: boolean },
+  ) {
+    const data = await this.ebooksService.setPublished(id, body.isPublished);
+    return { success: true, data };
+  }
+
+  @Patch('ebooks/:id/upload-epub')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('epubFile'))
+  async uploadEpub(
+    @Param('id') id: string,
+    @UploadedFile() epubFile: Express.Multer.File,
+    @Body('publish') publish?: string,
+  ) {
+    const data = await this.ebooksService.uploadEpub(id, epubFile, publish === 'true');
     return { success: true, data };
   }
 

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -13,7 +14,7 @@ import { readFileSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import { Account } from './entities/account.entity';
+import { Account, AccountRole, AccountStatus } from './entities/account.entity';
 import { UserProfile } from './entities/user-profile.entity';
 import { RevokedToken } from './entities/revoked-token.entity';
 import { Session } from './entities/session.entity';
@@ -66,13 +67,11 @@ export class AuthService {
   ) {
     this.privateKey = this.loadKey(
       process.env.JWT_PRIVATE_KEY_BASE64,
-      process.env.JWT_PRIVATE_KEY_PATH ??
-        'services/auth-service/keys/jwt.private.pem',
+      process.env.JWT_PRIVATE_KEY_PATH ?? 'keys/jwt.private.pem',
     );
     this.publicKey = this.loadKey(
       process.env.JWT_PUBLIC_KEY_BASE64,
-      process.env.JWT_PUBLIC_KEY_PATH ??
-        'services/auth-service/keys/jwt.public.pem',
+      process.env.JWT_PUBLIC_KEY_PATH ?? 'keys/jwt.public.pem',
     );
 
     this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
@@ -163,7 +162,9 @@ export class AuthService {
         this.resendCooldownSec,
       );
       if (nextAllowed > new Date()) {
-        throw new BadRequestException('Please wait before requesting a new code');
+        throw new BadRequestException(
+          'Please wait before requesting a new code',
+        );
       }
     }
 
@@ -199,7 +200,9 @@ export class AuthService {
     account.status = 'active';
     await this.accountRepository.save(account);
 
-    await this.emailVerificationRepository.delete({ accountId: account.accountId });
+    await this.emailVerificationRepository.delete({
+      accountId: account.accountId,
+    });
 
     return { message: 'Email verified successfully' };
   }
@@ -211,7 +214,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordValid = await bcrypt.compare(dto.password, account.passwordHash);
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      account.passwordHash,
+    );
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -389,16 +395,37 @@ export class AuthService {
     if (!userId) {
       throw new UnauthorizedException('Invalid user context');
     }
-    const profile = await this.userProfileRepository.findOne({ where: { userId } });
+    const profile = await this.userProfileRepository.findOne({
+      where: { userId },
+    });
     if (!profile) {
       throw new BadRequestException('User profile not found');
     }
     if (dto.fullName !== undefined) profile.fullName = dto.fullName;
-    if (dto.customInstructions !== undefined) profile.customInstructions = dto.customInstructions;
+    if (dto.customInstructions !== undefined)
+      profile.customInstructions = dto.customInstructions;
     if (dto.privacyMode !== undefined) profile.privacyMode = dto.privacyMode;
     if (dto.useMemory !== undefined) profile.useMemory = dto.useMemory;
     await this.userProfileRepository.save(profile);
     return { message: 'Profile updated successfully' };
+  }
+
+  async updateMemorySetting(userId: string | undefined, useMemory: boolean) {
+    if (!userId) {
+      throw new UnauthorizedException('Invalid user context');
+    }
+    const profile = await this.userProfileRepository.findOne({
+      where: { userId },
+    });
+    if (!profile) {
+      throw new BadRequestException('User profile not found');
+    }
+    profile.useMemory = useMemory;
+    await this.userProfileRepository.save(profile);
+    return {
+      message: useMemory ? 'Đã bật bộ nhớ' : 'Đã tắt bộ nhớ',
+      useMemory,
+    };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
@@ -407,7 +434,9 @@ export class AuthService {
 
     // Always return success to avoid leaking whether an email exists
     if (!account) {
-      return { message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.' };
+      return {
+        message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.',
+      };
     }
 
     // Cooldown check
@@ -417,9 +446,14 @@ export class AuthService {
     });
 
     if (latest) {
-      const nextAllowed = this.addSeconds(latest.createdAt, this.resendCooldownSec);
+      const nextAllowed = this.addSeconds(
+        latest.createdAt,
+        this.resendCooldownSec,
+      );
       if (nextAllowed > new Date()) {
-        throw new BadRequestException('Vui lòng đợi trước khi gửi lại yêu cầu.');
+        throw new BadRequestException(
+          'Vui lòng đợi trước khi gửi lại yêu cầu.',
+        );
       }
     }
 
@@ -434,7 +468,9 @@ export class AuthService {
 
     await this.sendPasswordResetEmail(email, token);
 
-    return { message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.' };
+    return {
+      message: 'Nếu email tồn tại, chúng tôi đã gửi link đặt lại mật khẩu.',
+    };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -447,7 +483,9 @@ export class AuthService {
     });
 
     if (!resetRecord || resetRecord.expiresAt <= new Date()) {
-      throw new BadRequestException('Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.');
+      throw new BadRequestException(
+        'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+      );
     }
 
     const account = await this.accountRepository.findOne({
@@ -465,6 +503,27 @@ export class AuthService {
     await this.passwordResetRepository.save(resetRecord);
 
     return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập.' };
+  }
+
+  async changePassword(accountId: string, currentPassword: string, newPassword: string) {
+    const account = await this.accountRepository.findOne({ where: { accountId } });
+    if (!account) {
+      throw new NotFoundException('Tài khoản không tồn tại.');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, account.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu hiện tại không đúng.');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Mật khẩu mới phải có ít nhất 8 ký tự.');
+    }
+
+    account.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.accountRepository.save(account);
+
+    return { message: 'Đổi mật khẩu thành công.' };
   }
 
   private verifyToken(token: string) {
@@ -601,6 +660,155 @@ export class AuthService {
     });
   }
 
+  async getUsers(params: {
+    search?: string;
+    role?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{ data: object[]; total: number; page: number; pageSize: number }> {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+    const statusMap: Record<string, string> = {
+      'Hoạt động': 'active',
+      'Tạm khóa': 'locked',
+      'Chờ xác minh': 'pending',
+    };
+    const statusDisplayMap: Record<string, string> = {
+      active: 'Hoạt động',
+      locked: 'Tạm khóa',
+      pending: 'Chờ xác minh',
+    };
+
+    const qb = this.accountRepository
+      .createQueryBuilder('a')
+      .orderBy('a.createdAt', 'DESC');
+
+    if (params.search) {
+      qb.andWhere('a.email LIKE :q', { q: `%${params.search}%` });
+    }
+    if (params.role) {
+      qb.andWhere('a.role = :role', { role: params.role });
+    }
+    if (params.status) {
+      qb.andWhere('a.status = :status', { status: statusMap[params.status] ?? params.status });
+    }
+
+    const total = await qb.getCount();
+    const accounts = await qb
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getMany();
+
+    const accountIds = accounts.map((a) => a.accountId);
+    const profiles = accountIds.length
+      ? await this.userProfileRepository
+        .createQueryBuilder('p')
+        .where('p.accountId IN (:...ids)', { ids: accountIds })
+        .getMany()
+      : [];
+    const profileMap = new Map(profiles.map((p) => [p.accountId, p]));
+
+    const data = accounts.map((a) => {
+      const profile = profileMap.get(a.accountId);
+      return {
+        id: a.accountId,
+        name: profile?.fullName ?? a.email.split('@')[0],
+        email: a.email,
+        role: a.role,
+        status: statusDisplayMap[a.status] ?? a.status,
+        joinedDate: a.createdAt.toISOString().split('T')[0],
+        lastActive: profile?.lastLoginAt?.toISOString().split('T')[0] ?? a.updatedAt.toISOString().split('T')[0],
+        sessions: 0,
+        contributions: profile?.totalContributions ?? 0,
+        verified: a.status !== 'pending',
+      };
+    });
+
+    return { data, total, page, pageSize };
+  }
+
+  async updateUser(
+    userId: string,
+    body: { fullName?: string; email?: string; role?: string },
+  ): Promise<{ success: boolean }> {
+    const account = await this.accountRepository.findOne({ where: { accountId: userId } });
+    if (!account) throw new NotFoundException('Người dùng không tồn tại.');
+
+    if (body.email && body.email !== account.email) {
+      const exists = await this.accountRepository.findOne({ where: { email: body.email } });
+      if (exists) throw new BadRequestException('Email đã được sử dụng bởi tài khoản khác.');
+      account.email = body.email;
+    }
+    if (body.role) {
+      account.role = body.role as AccountRole;
+    }
+    await this.accountRepository.save(account);
+
+    if (body.fullName !== undefined) {
+      let profile = await this.userProfileRepository.findOne({ where: { accountId: userId } });
+      if (!profile) {
+        profile = this.userProfileRepository.create({ accountId: userId, fullName: body.fullName });
+      } else {
+        profile.fullName = body.fullName;
+      }
+      await this.userProfileRepository.save(profile);
+    }
+
+    return { success: true };
+  }
+
+  async updateUserRole(
+    userId: string,
+    role: string,
+  ): Promise<{ success: boolean }> {
+    const account = await this.accountRepository.findOne({ where: { accountId: userId } });
+    if (!account) {
+      throw new BadRequestException('User not found.');
+    }
+    account.role = role as AccountRole;
+    await this.accountRepository.save(account);
+    return { success: true };
+  }
+
+  async updateUserStatus(
+    userId: string,
+    status: string,
+  ): Promise<{ success: boolean }> {
+    const account = await this.accountRepository.findOne({ where: { accountId: userId } });
+    if (!account) {
+      throw new BadRequestException('User not found.');
+    }
+    const statusMap: Record<string, string> = {
+      'Hoạt động': 'active',
+      'Tạm khóa': 'locked',
+      'Chờ xác minh': 'pending',
+    };
+    account.status = (statusMap[status] ?? status) as AccountStatus;
+    await this.accountRepository.save(account);
+    return { success: true };
+  }
+
+  async getUserStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    newUsersToday: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalUsers, activeUsers, newUsersToday] = await Promise.all([
+      this.accountRepository.count(),
+      this.accountRepository.count({ where: { status: 'active' } }),
+      this.accountRepository
+        .createQueryBuilder('a')
+        .where('a.createdAt >= :today', { today })
+        .getCount(),
+    ]);
+
+    return { totalUsers, activeUsers, newUsersToday };
+  }
+
   private generateVerificationToken() {
     return uuidv4();
   }
@@ -611,6 +819,38 @@ export class AuthService {
     }
 
     return readFileSync(path, 'utf8');
+  }
+
+  async createUser(body: { email: string; password: string; role?: string; fullName?: string }) {
+    const existing = await this.accountRepository.findOne({ where: { email: body.email } });
+    if (existing) throw new Error('Email đã tồn tại');
+
+    const hash = await bcrypt.hash(body.password, 10);
+    const account = this.accountRepository.create({
+      email: body.email,
+      passwordHash: hash,
+      role: (body.role as 'admin' | 'user' | 'expert') ?? 'user',
+      status: 'active',
+    });
+    await this.accountRepository.save(account);
+
+    if (body.fullName) {
+      const profile = this.userProfileRepository.create({
+        accountId: account.accountId,
+        fullName: body.fullName,
+      });
+      await this.userProfileRepository.save(profile);
+    }
+
+    return { success: true, id: account.accountId, email: account.email, role: account.role };
+  }
+
+  async deleteUser(accountId: string) {
+    const account = await this.accountRepository.findOne({ where: { accountId } });
+    if (!account) throw new Error('Người dùng không tồn tại');
+    await this.userProfileRepository.delete({ accountId });
+    await this.accountRepository.delete({ accountId });
+    return { success: true };
   }
 
   private parseDurationToSeconds(value: string) {

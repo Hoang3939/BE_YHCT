@@ -2,6 +2,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -47,6 +49,9 @@ export class KnowledgeContribution {
 
   @Column({ name: 'reviewerId', type: 'uniqueidentifier', nullable: true })
   reviewerId!: string | null;
+
+  @Column({ name: 'ebookId', type: 'uniqueidentifier', nullable: true })
+  ebookId!: string | null;
 
   @OneToMany(() => ContributionAsset, (asset) => asset.contribution)
   assets!: ContributionAsset[];

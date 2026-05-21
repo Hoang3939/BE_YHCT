@@ -12,7 +12,10 @@ import { FeedbackEntity } from './feedbacks/entities/feedback.entity';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
+    }),
     TypeOrmModule.forRoot({
       type: 'mssql',
       host: process.env.DB_HOST ?? '',
@@ -31,4 +34,4 @@ import { FeedbackEntity } from './feedbacks/entities/feedback.entity';
     FeedbacksModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

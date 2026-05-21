@@ -70,7 +70,7 @@ export class FeedbacksService {
   constructor(
     @InjectRepository(FeedbackEntity)
     private readonly feedbackRepository: Repository<FeedbackEntity>,
-  ) {}
+  ) { }
 
   async create(
     dto: CreateFeedbackDto,
@@ -96,6 +96,17 @@ export class FeedbacksService {
       feedbackId: savedFeedback.feedbackId,
       status: savedFeedback.status,
       createdAt: savedFeedback.createdAt.toISOString(),
+    };
+  }
+
+  async getStats(): Promise<{ total: number; pending: number; inProgress: number; resolved: number; rejected: number }> {
+    const all = await this.feedbackRepository.find({ select: ['status'] });
+    return {
+      total: all.length,
+      pending: all.filter(f => f.status === 'new').length,
+      inProgress: all.filter(f => f.status === 'reviewing').length,
+      resolved: all.filter(f => f.status === 'resolved').length,
+      rejected: all.filter(f => f.status === 'closed').length,
     };
   }
 

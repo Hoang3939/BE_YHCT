@@ -18,7 +18,49 @@ export class EbooksService {
     private readonly ebookRepository: Repository<Ebook>,
     @InjectRepository(DataPipeline)
     private readonly pipelineRepository: Repository<DataPipeline>,
-  ) {}
+  ) { }
+
+  async getStats() {
+    const [total, published] = await Promise.all([
+      this.ebookRepository.count(),
+      this.ebookRepository.count({ where: { isPublished: true } }),
+    ]);
+    return { total, published };
+  }
+
+  async uploadEpub(id: string, epubFile: Express.Multer.File, publish = false) {
+    const book = await this.ebookRepository.findOne({ where: { id } });
+    if (!book) throw new NotFoundException('Ebook not found.');
+
+    const fileExt = epubFile.originalname.split('.').pop() ?? 'epub';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const objectPath = `ebooks/${fileName}`;
+
+    const { error } = await this.supabase.storage
+      .from('secure-documents')
+      .upload(objectPath, epubFile.buffer, {
+        contentType: epubFile.mimetype || 'application/epub+zip',
+        upsert: false,
+      });
+
+    if (error) {
+      throw new InternalServerErrorException(`Supabase upload failed: ${error.message}`);
+    }
+
+    book.storagePath = objectPath;
+    if (publish) book.isPublished = true;
+    await this.ebookRepository.save(book);
+
+    return { id: book.id, storagePath: book.storagePath, isPublished: book.isPublished };
+  }
+
+  async setPublished(id: string, isPublished: boolean) {
+    const book = await this.ebookRepository.findOne({ where: { id } });
+    if (!book) throw new NotFoundException('Ebook not found.');
+    book.isPublished = isPublished;
+    await this.ebookRepository.save(book);
+    return { id: book.id, isPublished: book.isPublished };
+  }
 
   async create(createDto: CreateEbookDto, pdfFile: Express.Multer.File) {
     if (!pdfFile) {

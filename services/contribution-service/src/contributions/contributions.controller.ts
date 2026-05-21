@@ -9,8 +9,11 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AddContributionAssetDto } from './dto/add-contribution-asset.dto';
 import { CreateContributionDto } from './dto/create-contribution.dto';
 import { ReviewContributionDto } from './dto/review-contribution.dto';
@@ -20,7 +23,7 @@ import { ContributionsService } from './contributions.service';
 @UseGuards(JwtAuthGuard)
 @Controller('contributions')
 export class ContributionsController {
-  constructor(private readonly contributionsService: ContributionsService) {}
+  constructor(private readonly contributionsService: ContributionsService) { }
 
   @Post()
   async create(
@@ -28,22 +31,32 @@ export class ContributionsController {
     @Req() req?: { user?: { userId?: string; role?: string } },
   ) {
     const userId = req?.user?.userId;
+    console.log('[DEBUG] POST /contributions - userId:', userId, 'req.user:', req?.user);
     if (!userId) {
+      console.log('[DEBUG] Missing userId in request');
       throw new UnauthorizedException('Missing user context');
     }
 
-    const data = await this.contributionsService.create(userId, dto);
-    return {
-      success: true,
-      message: 'Đã tạo hồ sơ đóng góp tài liệu.',
-      data,
-    };
+    try {
+      const data = await this.contributionsService.create(userId, dto);
+      console.log('[DEBUG] Contribution created:', data.contributionId);
+      return {
+        success: true,
+        message: 'Đã tạo hồ sơ đóng góp tài liệu.',
+        data,
+      };
+    } catch (error) {
+      console.error('[ERROR] Failed to create contribution:', error);
+      throw error;
+    }
   }
 
   @Post(':id/assets')
+  @UseInterceptors(FileInterceptor('file'))
   async addAsset(
     @Param('id') id: string,
     @Body() dto: AddContributionAssetDto,
+    @UploadedFile() file: Express.Multer.File,
     @Req() req?: { user?: { userId?: string; role?: string } },
   ) {
     const userId = req?.user?.userId;
@@ -51,10 +64,10 @@ export class ContributionsController {
       throw new UnauthorizedException('Missing user context');
     }
 
-    const data = await this.contributionsService.addAsset(id, dto);
+    const data = await this.contributionsService.addAsset(id, dto, file);
     return {
       success: true,
-      message: 'Đã lưu metadata tài liệu đóng góp.',
+      message: 'Đã tải file và lưu asset đóng góp.',
       data,
     };
   }
@@ -84,6 +97,19 @@ export class ContributionsController {
     }
 
     const data = await this.contributionsService.findOne(id);
+    return { success: true, data };
+  }
+
+  @Get('assets/:assetId/download-url')
+  async getAssetDownloadUrl(
+    @Param('assetId') assetId: string,
+    @Req() req?: { user?: { role?: string } },
+  ) {
+    const role = req?.user?.role;
+    if (role && role !== 'admin' && role !== 'expert') {
+      throw new ForbiddenException('Only admin or expert can access asset download URLs');
+    }
+    const data = await this.contributionsService.getAssetDownloadUrl(assetId);
     return { success: true, data };
   }
 

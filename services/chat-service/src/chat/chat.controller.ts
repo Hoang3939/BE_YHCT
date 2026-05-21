@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UploadedFiles,
@@ -24,7 +25,7 @@ type UploadedAttachment = {
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   @Get('conversations')
   getConversations(@Req() req) {
@@ -39,6 +40,38 @@ export class ChatController {
   @Delete('conversations/:id')
   deleteConversation(@Req() req, @Param('id') conversationId: string) {
     return this.chatService.deleteConversation(req.user.userId, conversationId);
+  }
+
+  @Patch('conversations/:id/title')
+  updateTitle(
+    @Req() req,
+    @Param('id') conversationId: string,
+    @Body('title') title: string,
+  ) {
+    return this.chatService.updateTitle(req.user.userId, conversationId, title);
+  }
+
+  @Post('messages/:id/feedback')
+  addFeedback(
+    @Param('id') messageId: string,
+    @Body() body: { type: 'good' | 'bad' | 'copy'; note?: string },
+  ) {
+    return this.chatService.addFeedback(messageId, body.type, body.note);
+  }
+
+  @Delete('messages/:id/feedback')
+  removeFeedback(@Param('id') messageId: string) {
+    return this.chatService.removeFeedback(messageId);
+  }
+
+  @Get('stats')
+  getStats() {
+    return this.chatService.getStats();
+  }
+
+  @Get('stats/heatmap')
+  getHeatmap() {
+    return this.chatService.getHeatmap();
   }
 
   @Post('message')

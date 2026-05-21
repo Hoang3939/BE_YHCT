@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Repository } from 'typeorm';
 import { AddContributionAssetDto } from './dto/add-contribution-asset.dto';
 import { CreateContributionDto } from './dto/create-contribution.dto';
@@ -29,6 +31,7 @@ export class ContributionsService {
   private readonly transporter: Transporter;
   private readonly frontendUrl: string;
   private readonly pipelineServiceUrl: string;
+  private readonly supabase: SupabaseClient;
 
   constructor(
     @InjectRepository(KnowledgeContribution)
@@ -44,6 +47,18 @@ export class ContributionsService {
   ) {
     this.frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     this.pipelineServiceUrl = process.env.PIPELINE_SERVICE_URL ?? 'http://localhost:3006';
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ??
+      process.env.SUPABASE_SERVICE_KEY ??
+      process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE service key for contribution uploads');
+    }
+
+    this.supabase = createClient(supabaseUrl, supabaseKey);
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT ?? 465),
@@ -109,20 +124,80 @@ export class ContributionsService {
   async addAsset(
     contributionId: string,
     dto: AddContributionAssetDto,
+    file: Express.Multer.File,
   ): Promise<ContributionAsset> {
     const contribution = await this.findOne(contributionId);
 
+    if (!file) {
+      throw new BadRequestException('Contribution asset file is required');
+    }
+
+    const storedFilePath = await this.uploadContributionAsset(contribution.contributionId, file);
+
     const asset = this.contributionAssetRepo.create({
       contributionId: contribution.contributionId,
-      originalFileName: dto.originalFileName.trim(),
-      storedFilePath: dto.storedFilePath.trim(),
-      mimeType: dto.mimeType.trim(),
-      fileSize: String(dto.fileSize),
+      originalFileName: dto.originalFileName?.trim() || file.originalname,
+      storedFilePath,
+      mimeType: dto.mimeType?.trim() || file.mimetype || 'application/octet-stream',
+      fileSize: String(file.size),
       checksum: dto.checksum?.trim() || null,
       assetType: dto.assetType,
     });
 
-    return this.contributionAssetRepo.save(asset);
+    const savedAsset = await this.contributionAssetRepo.save(asset);
+
+    if (!contribution.filePath) {
+      await this.contributionRepo.update(
+        { contributionId: contribution.contributionId },
+        { filePath: storedFilePath },
+      );
+      contribution.filePath = storedFilePath;
+    }
+
+    return savedAsset;
+  }
+
+  private async uploadContributionAsset(
+    contributionId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const fileExt = file.originalname.split('.').pop() ?? 'bin';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const objectPath = `contributions/${contributionId}/${fileName}`;
+
+    const { error } = await this.supabase.storage
+      .from('secure-documents')
+      .upload(objectPath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      this.logger.error(`Supabase upload failed for contribution ${contributionId}: ${error.message}`);
+      throw new InternalServerErrorException(`Supabase upload failed: ${error.message}`);
+    }
+
+    return objectPath;
+  }
+
+  async getAssetDownloadUrl(
+    assetId: string,
+    expiresIn = 3600,
+  ): Promise<{ url: string; fileName: string }> {
+    const asset = await this.contributionAssetRepo.findOne({ where: { assetId } });
+    if (!asset) {
+      throw new NotFoundException(`Asset ${assetId} not found`);
+    }
+
+    const { data, error } = await this.supabase.storage
+      .from('secure-documents')
+      .createSignedUrl(asset.storedFilePath, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      throw new InternalServerErrorException(`Could not generate signed URL: ${error?.message ?? 'unknown'}`);
+    }
+
+    return { url: data.signedUrl, fileName: asset.originalFileName };
   }
 
   async review(
